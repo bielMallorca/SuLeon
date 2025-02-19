@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Transcription</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #transcriptions {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    .transcription-item {
+      margin-bottom: 10px;
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <h1>Record and Transcribe Audio</h1>
+  <button id="record-btn">Start Recording</button>
+  <button id="stop-btn" disabled>Stop Recording</button>
+  <p id="status">Status: Ready</p>
+  
+  <h2>Transcriptions</h2>
+  <div id="transcriptions">
+    <!-- Transcriptions will appear here -->
+  </div>
+
+  <script>
+    const recordBtn = document.getElementById("record-btn");
+    const stopBtn = document.getElementById("stop-btn");
+    const status = document.getElementById("status");
+    const transcriptionsDiv = document.getElementById("transcriptions");
+
+    let mediaRecorder;
+    let audioChunks = [];
+
+    recordBtn.addEventListener("click", async () => {
+      try {
+        // Solicitar acceso al micrófono
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+          const formData = new FormData();
+          formData.append("audio", audioBlob);
+
+          status.textContent = "Status: Transcribing and querying SuLeon...";
+
+          // Enviar audio al servidor
+          const response = await fetch("/transcribe", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (data.transcription) {
+            const transcriptionItem = document.createElement("div");
+            transcriptionItem.className = "transcription-item";
+            transcriptionItem.innerHTML = `
+              <strong>Transcription:</strong> ${data.transcription}<br>
+              <strong>SuLeon Response:</strong> ${data.suleon_response || "No response"}
+            `;
+            transcriptionsDiv.appendChild(transcriptionItem);
+          } else if (data.error) {
+            alert(`Error: ${data.error}`);
+          }
+
+          status.textContent = "Status: Ready";
+        };
+
+        mediaRecorder.start();
+        audioChunks = [];
+        status.textContent = "Status: Recording...";
+        recordBtn.disabled = true;
+        stopBtn.disabled = false;
+      } catch (error) {
+        status.textContent = "Error: Unable to access microphone.";
+        console.error("Error accessing microphone:", error);
+      }
+    });
+
+    stopBtn.addEventListener("click", () => {
+      mediaRecorder.stop();
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+  </script>
+</body>
+</html>
