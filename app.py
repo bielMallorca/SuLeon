@@ -8,7 +8,6 @@ app = Flask(__name__)
 
 # Configuración de la API de SuLeon
 #API_URL = "https://api.mygpts.com/suleon"  # Reemplaza con la URL correcta
-#API_KEY = "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"  # Reemplaza con tu clave API
 
 # Cargar el modelo Whisper
 modelwi = whisper.load_model("base")
